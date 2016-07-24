@@ -30,3 +30,4 @@ uint8_t LED_scan();
 
 void LED_currentChange( unsigned int current );
 
+void LED_control_capability( uint8_t state, uint8_t stateType, uint8_t *args );

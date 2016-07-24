@@ -176,3 +176,16 @@ void CustomAction_blockKey_capability( uint8_t state, uint8_t stateType, uint8_t
 	}
 }
 
+void CustomAction_test_capability( uint8_t state, uint8_t stateType, uint8_t *args )
+{
+	// Display capability name
+	// XXX This is required for debug cli to give you a list of capabilities
+	if ( stateType == 0xFF && state == 0xFF )
+	{
+		print("CustomAction_test_capability()");
+		return;
+	}
+
+	LED_control_capability(state, stateType, args);
+}
+

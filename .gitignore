@@ -58,6 +58,10 @@ CMakeCache.txt
 cmake_install.cmake
 compile_commands.json
 
+# External repos #
+##################
+kll/
+
 # Custom #
 ##########
 Keyboards/*_layout

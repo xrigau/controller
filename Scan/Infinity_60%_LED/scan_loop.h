@@ -48,3 +48,5 @@ void CustomAction_action1_capability( uint8_t state, uint8_t stateType, uint8_t 
 void CustomAction_blockHold_capability( uint8_t state, uint8_t stateType, uint8_t *args );
 void CustomAction_blockKey_capability( uint8_t state, uint8_t stateType, uint8_t *args );
 
+// xrigau's capabilities
+void CustomAction_test_capability( uint8_t state, uint8_t stateType, uint8_t *args );
