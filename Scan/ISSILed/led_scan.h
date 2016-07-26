@@ -21,7 +21,10 @@
 // Compiler Includes
 #include <stdint.h>
 
+// TODO Needs to be defined per keyboard
+#define LED_TotalChannels 144
 
+#define LED_BufferLength 144
 
 // ----- Functions -----
 
@@ -30,4 +33,14 @@ uint8_t LED_scan();
 
 void LED_currentChange( unsigned int current );
 
-void LED_control_capability( uint8_t state, uint8_t stateType, uint8_t *args );
+
+typedef struct LED_Buffer {
+	uint8_t i2c_addr;
+	uint8_t reg_addr;
+	uint8_t buffer[LED_BufferLength];
+} LED_Buffer;
+
+// Custom
+LED_Buffer LED_pageBuffer;
+
+void LED_sendPage( uint8_t *buffer, uint8_t len, uint8_t page );

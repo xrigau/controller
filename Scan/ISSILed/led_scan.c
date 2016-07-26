@@ -40,12 +40,6 @@
 #define I2C_TxBufferLength 300
 #define I2C_RxBufferLength 8
 
-#define LED_BufferLength 144
-
-// TODO Needs to be defined per keyboard
-#define LED_TotalChannels 144
-
-
 
 // ----- Structs -----
 
@@ -56,12 +50,6 @@ typedef struct I2C_Buffer {
 	uint16_t  size;
 	uint8_t  *buffer;
 } I2C_Buffer;
-
-typedef struct LED_Buffer {
-	uint8_t i2c_addr;
-	uint8_t reg_addr;
-	uint8_t buffer[LED_BufferLength];
-} LED_Buffer;
 
 
 
@@ -117,8 +105,6 @@ volatile uint8_t I2C_RxBufferPtr[ I2C_TxBufferLength ];
 
 volatile I2C_Buffer I2C_TxBuffer = { 0, 0, 0, I2C_TxBufferLength, (uint8_t*)I2C_TxBufferPtr };
 volatile I2C_Buffer I2C_RxBuffer = { 0, 0, 0, I2C_RxBufferLength, (uint8_t*)I2C_RxBufferPtr };
-
-LED_Buffer LED_pageBuffer;
 
 // A bit mask determining which LEDs are enabled in the ISSI chip
 const uint8_t LED_ledEnableMask1[] = {

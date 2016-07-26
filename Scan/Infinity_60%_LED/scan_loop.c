@@ -45,7 +45,9 @@
 // Number of scans since the last USB send
 uint16_t Scan_scanCount = 0;
 
-
+uint8_t LED_debounce_timer = 0;
+uint8_t LED_luminosity = 245;
+uint8_t LED_areAllKeysIlluminated = 1;
 
 // ----- Functions -----
 
@@ -176,16 +178,159 @@ void CustomAction_blockKey_capability( uint8_t state, uint8_t stateType, uint8_t
 	}
 }
 
-void CustomAction_test_capability( uint8_t state, uint8_t stateType, uint8_t *args )
-{
-	// Display capability name
-	// XXX This is required for debug cli to give you a list of capabilities
-	if ( stateType == 0xFF && state == 0xFF )
-	{
-		print("CustomAction_test_capability()");
+uint8_t isDebug(uint8_t state, uint8_t stateType) {
+	return stateType == 0xFF && state == 0xFF;
+}
+
+uint8_t isNotAKeyPress(uint8_t state, uint8_t stateType) {
+	return stateType == 0x00 && state != 0x01;
+}
+
+void pushLedPage() {
+	LED_pageBuffer.i2c_addr = 0xE8; // Chip 1
+	LED_pageBuffer.reg_addr = 0x24; // Brightness section
+	LED_sendPage( (uint8_t*)&LED_pageBuffer, sizeof( LED_Buffer ), 0 );
+}
+
+void clearPageBuffer() {
+	for ( uint8_t i = 0; i < LED_TotalChannels; i++ ) {
+		LED_pageBuffer.buffer[ i ] = 0;
+	}
+}
+
+void illuminateFunctionLayerKeys() {
+	clearPageBuffer();
+	int8_t values[] = {16, 32, 48, 64, 80, 96, 112, 7, 0, 33, 49, 65, 81, 97, 113, 85, 70, 86, 102, 99, 103, 38};
+	for (uint8_t i = 0; i < sizeof(values); i++) {
+		LED_pageBuffer.buffer[values[i]] = LED_luminosity;
+	}
+	pushLedPage();
+}
+
+void illuminateAllKeys() {
+	for ( uint8_t i = 0; i < LED_TotalChannels; i++ ) {
+		LED_pageBuffer.buffer[i] = LED_luminosity;
+	}
+	pushLedPage();
+}
+
+void illuminateEscKey() {
+	clearPageBuffer();
+	LED_pageBuffer.buffer[16] = LED_luminosity;
+	pushLedPage();
+}
+
+void CustomAction_updateLeds_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+	if (isDebug(state, stateType)) {
+		// Display capability name. This is required for debug cli to give you a list of capabilities
+		print("CustomAction_updateLeds_capability()");
+		return;
+	}
+	if (isNotAKeyPress(state, stateType)) {
+		// Only use capability on press. Not on release
 		return;
 	}
 
-	LED_control_capability(state, stateType, args);
+	if (LED_areAllKeysIlluminated == 1) {
+		illuminateFunctionLayerKeys();
+		LED_areAllKeysIlluminated = 0;
+	} else {
+		illuminateAllKeys();
+		LED_areAllKeysIlluminated = 1;
+	}
+}
+
+
+uint8_t isKeyPress(uint8_t state, uint8_t stateType) {
+	return stateType == 0x00 && state == 0x01;
+}
+
+uint8_t isKeyRelease(uint8_t state, uint8_t stateType) {
+	return stateType == 0x00 && state == 0x03;
+}
+
+uint8_t isKeyHold(uint8_t state, uint8_t stateType) {
+	return stateType == 0x00 && state == 0x02;
+}
+
+void CustomAction_lightEsc_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+	if (isDebug(state, stateType)) {
+		// Display capability name. This is required for debug cli to give you a list of capabilities
+		print("CustomAction_lightEsc_capability()");
+		return;
+	}
+
+	if (isKeyPress(state, stateType) == 1) {
+		illuminateEscKey();
+	} else if (isKeyRelease(state, stateType) == 1) {
+		illuminateAllKeys();
+	}
+}
+
+uint8_t isTooEarlyToUpdate() {
+	uint8_t currentTime = (uint8_t)systick_millis_count;
+	int8_t compare = (int8_t)(currentTime - LED_debounce_timer) & 0x7F;
+	if (compare < 30) {
+		return 1;
+	} else {
+		LED_debounce_timer = currentTime;
+		return 0;
+	}
+}
+
+void propagateNewLuminosity() {
+	if (LED_areAllKeysIlluminated == 1) {
+		illuminateAllKeys();
+	} else {
+		illuminateFunctionLayerKeys();
+	}
+}
+
+void updateLuminosityWithBounds(uint8_t amount) {
+	LED_luminosity += amount;
+	if (LED_luminosity > 245) {
+		LED_luminosity = 245;
+	} else if (LED_luminosity < 10) {
+		LED_luminosity = 10;
+	}
+}
+
+void changeLuminosity(uint8_t amount, uint8_t state, uint8_t stateType) {
+	if (isDebug(state, stateType)) {
+		print("CustomAction_increaseAllLedsLuminosity_capability()");
+		print("CustomAction_decreaseAllLedsLuminosity_capability()");
+		return;
+	}
+
+	if (isTooEarlyToUpdate() == 1) {
+		return;
+	}
+
+	if (isKeyHold(state, stateType) == 1) {
+		updateLuminosityWithBounds(amount);
+		propagateNewLuminosity();
+	}
+}
+
+void CustomAction_increaseAllLedsLuminosity_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+	changeLuminosity(10, state, stateType);
+}
+
+void CustomAction_decreaseAllLedsLuminosity_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+	changeLuminosity(-10, state, stateType);
+}
+
+void CustomAction_turnAllLedsOff_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+	if (isDebug(state, stateType)) {
+		// Display capability name. This is required for debug cli to give you a list of capabilities
+		print("CustomAction_turnAllLedsOff_capability()");
+		return;
+	}
+
+	if (isKeyPress(state, stateType) == 1) {
+		LED_luminosity = 0;
+		clearPageBuffer();
+		pushLedPage();
+	}
 }
 

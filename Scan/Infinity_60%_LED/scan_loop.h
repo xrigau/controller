@@ -27,7 +27,6 @@
 #include <stdint.h>
 
 
-
 // ----- Functions -----
 
 // Functions to be called by main.c
@@ -49,4 +48,12 @@ void CustomAction_blockHold_capability( uint8_t state, uint8_t stateType, uint8_
 void CustomAction_blockKey_capability( uint8_t state, uint8_t stateType, uint8_t *args );
 
 // xrigau's capabilities
-void CustomAction_test_capability( uint8_t state, uint8_t stateType, uint8_t *args );
+void CustomAction_updateLeds_capability( uint8_t state, uint8_t stateType, uint8_t *args );
+
+void CustomAction_lightEsc_capability( uint8_t state, uint8_t stateType, uint8_t *args );
+
+void CustomAction_increaseAllLedsLuminosity_capability( uint8_t state, uint8_t stateType, uint8_t *args );
+
+void CustomAction_decreaseAllLedsLuminosity_capability( uint8_t state, uint8_t stateType, uint8_t *args );
+
+
