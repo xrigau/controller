@@ -293,6 +293,33 @@ void Macro_layerLock_capability( uint8_t state, uint8_t stateType, uint8_t *args
 	Macro_layerState( state, stateType, layer, 0x04 );
 }
 
+uint32_t layerLongLock_timer = 0;
+// Locks given layer after it's been pressed for some time
+// Argument #1: Layer Index -> uint16_t
+void Macro_layerLongLock_capability( uint8_t state, uint8_t stateType, uint8_t *args ) {
+	// Display capability name
+	if ( stateType == 0xFF && state == 0xFF ) {
+		print("Macro_layerLongLock_capability(layerIndex)");
+		return;
+	}
+	
+	uint32_t currentTime = systick_millis_count;
+	if ( stateType == 0x00 && state == 0x01 ) { // Pressed
+		layerLongLock_timer = currentTime; // Set start timestamp
+	} else if ( stateType == 0x00 && state == 0x02 ) { // Hold
+		// Nothing
+	} else if ( stateType == 0x00 && state == 0x03 ) { // Release
+		int32_t diff = (int32_t)(currentTime - layerLongLock_timer);
+		if (diff > 500) { // We reached the threshold
+			// Get layer index from arguments
+			// Cast pointer to uint8_t to uint16_t then access that memory location
+			uint16_t layer = *(uint16_t*)(&args[0]);
+			Macro_layerState( state, stateType, layer, 0x04 );
+		}
+		layerLongLock_timer = 0;
+	}
+}
+
 
 // Shifts given layer
 // Argument #1: Layer Index -> uint16_t

@@ -47,7 +47,7 @@ uint16_t Scan_scanCount = 0;
 
 uint8_t LED_debounce_timer = 0;
 uint8_t LED_luminosity = 245;
-uint8_t LED_areAllKeysIlluminated = 1;
+uint8_t LED_currentIlluminatedLayer = 0; // -1 for off
 
 // ----- Functions -----
 
@@ -198,7 +198,7 @@ void clearPageBuffer() {
 	}
 }
 
-void illuminateFunctionLayerKeys() {
+void illuminateFunctionLayer1Keys() {
 	clearPageBuffer();
 	int8_t values[] = {16, 32, 48, 64, 80, 96, 112, 7, 0, 33, 49, 65, 81, 97, 113, 85, 70, 86, 102, 99, 103, 38};
 	for (uint8_t i = 0; i < sizeof(values); i++) {
@@ -214,32 +214,15 @@ void illuminateAllKeys() {
 	pushLedPage();
 }
 
-void illuminateEscKey() {
+void illuminateFunctionLayer2Keys() {
 	clearPageBuffer();
-	LED_pageBuffer.buffer[16] = LED_luminosity;
+	int8_t values[] = {16, 34, 67, 83, 4, 69, 71, 53, 65, 81, 49};
+	for (uint8_t i = 0; i < sizeof(values); i++) {
+		LED_pageBuffer.buffer[values[i]] = LED_luminosity;
+	}
+
 	pushLedPage();
 }
-
-void CustomAction_updateLeds_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
-	if (isDebug(state, stateType)) {
-		// Display capability name. This is required for debug cli to give you a list of capabilities
-		print("CustomAction_updateLeds_capability()");
-		return;
-	}
-	if (isNotAKeyPress(state, stateType)) {
-		// Only use capability on press. Not on release
-		return;
-	}
-
-	if (LED_areAllKeysIlluminated == 1) {
-		illuminateFunctionLayerKeys();
-		LED_areAllKeysIlluminated = 0;
-	} else {
-		illuminateAllKeys();
-		LED_areAllKeysIlluminated = 1;
-	}
-}
-
 
 uint8_t isKeyPress(uint8_t state, uint8_t stateType) {
 	return stateType == 0x00 && state == 0x01;
@@ -253,17 +236,64 @@ uint8_t isKeyHold(uint8_t state, uint8_t stateType) {
 	return stateType == 0x00 && state == 0x02;
 }
 
-void CustomAction_lightEsc_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+void CustomAction_illuminateLayer1Lock_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
 	if (isDebug(state, stateType)) {
-		// Display capability name. This is required for debug cli to give you a list of capabilities
-		print("CustomAction_lightEsc_capability()");
+		print("CustomAction_illuminateLayer1Lock_capability()");
+		return;
+	}
+	if (isNotAKeyPress(state, stateType)) {
+		// Only use capability on press. Not on release
+		return;
+	}
+
+	if (LED_currentIlluminatedLayer != 1) {
+		illuminateFunctionLayer1Keys();
+		LED_currentIlluminatedLayer = 1;
+	} else {
+		illuminateAllKeys();
+		LED_currentIlluminatedLayer = 0;
+	}
+}
+
+void CustomAction_illuminateLayer2Shift_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+	if (isDebug(state, stateType)) {
+		print("CustomAction_illuminateLayer2Shift_capability()");
 		return;
 	}
 
 	if (isKeyPress(state, stateType) == 1) {
-		illuminateEscKey();
+		illuminateFunctionLayer2Keys();
+		LED_currentIlluminatedLayer = 2;
 	} else if (isKeyRelease(state, stateType) == 1) {
 		illuminateAllKeys();
+		LED_currentIlluminatedLayer = 0;
+	}
+}
+
+void CustomAction_illuminateLayer1Shift_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+	if (isDebug(state, stateType)) {
+		print("CustomAction_illuminateLayer1Shift_capability()");
+		return;
+	}
+
+	if (isKeyPress(state, stateType) == 1) {
+		if (LED_currentIlluminatedLayer == 1) {
+			illuminateAllKeys();
+			LED_currentIlluminatedLayer = 0;
+		} else if (LED_currentIlluminatedLayer == 0) {
+			illuminateFunctionLayer1Keys();
+			LED_currentIlluminatedLayer = 1;
+		}
+	} else if (isKeyRelease(state, stateType) == 1) {
+		if (LED_currentIlluminatedLayer == 1) { // TODO: DUpe
+			illuminateAllKeys();
+			LED_currentIlluminatedLayer = 0;
+		} else if (LED_currentIlluminatedLayer == 0) {
+			illuminateFunctionLayer1Keys();
+			LED_currentIlluminatedLayer = 1;
+		}
+		illuminateAllKeys();
+		LED_currentIlluminatedLayer = 0;
 	}
 }
 
@@ -278,11 +308,13 @@ uint8_t isTooEarlyToUpdate() {
 	}
 }
 
-void propagateNewLuminosity() {
-	if (LED_areAllKeysIlluminated == 1) {
+void propagateNewLuminosityInProgress() {
+	if (LED_currentIlluminatedLayer == 0) {
 		illuminateAllKeys();
-	} else {
-		illuminateFunctionLayerKeys();
+	} else if (LED_currentIlluminatedLayer == 1) {
+		illuminateFunctionLayer1Keys();
+	} else if (LED_currentIlluminatedLayer == 2) {
+		illuminateFunctionLayer2Keys();
 	}
 }
 
@@ -308,7 +340,7 @@ void changeLuminosity(uint8_t amount, uint8_t state, uint8_t stateType) {
 
 	if (isKeyHold(state, stateType) == 1) {
 		updateLuminosityWithBounds(amount);
-		propagateNewLuminosity();
+		propagateNewLuminosityInProgress();
 	}
 }
 
