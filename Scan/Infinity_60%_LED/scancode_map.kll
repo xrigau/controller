@@ -74,9 +74,6 @@ S0x3E : U"Function4"; # Right Blank Key 2
 
 # Custom Action Examples
 
-# Example capability, prints to cli
-action1 => CustomAction_action1_capability(); # No arguments
-
 # Blocks given USB Code, must be used with blockLink
 # Simple example, supports only blocking a single key at a time
 # Keys must be specified using numbers see Macro/PartialMap/usb_hid.h

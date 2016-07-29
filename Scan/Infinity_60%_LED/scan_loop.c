@@ -47,7 +47,13 @@ uint16_t Scan_scanCount = 0;
 
 uint8_t LED_debounce_timer = 0;
 uint8_t LED_luminosity = 245;
-uint8_t LED_currentIlluminatedLayer = 0; // -1 for off
+
+const uint8_t LAYER_1_VALUES[] = {16, 32, 48, 64, 80, 96, 112, 7, 0, 33, 49, 65, 81, 97, 113, 85, 70, 86, 102, 99, 103, 38};
+const uint8_t LAYER_1_SIZE = 22;
+const uint8_t LAYER_2_VALUES[] = {16, 34, 67, 83, 4, 69, 71, 53, 65, 81, 49, 97, 113, 33};
+const uint8_t LAYER_2_SIZE = 14;
+const uint8_t UNKNOWN_LAYER_VALUES[] = {34};
+const uint8_t UNKNOWN_LAYER_SIZE = 1;
 
 // ----- Functions -----
 
@@ -105,21 +111,6 @@ void Scan_currentChange( unsigned int current )
 
 // ----- Capabilities -----
 
-// Custom capability examples
-// Refer to kll.h in Macros/PartialMap for state and stateType information
-void CustomAction_action1_capability( uint8_t state, uint8_t stateType, uint8_t *args )
-{
-	// Display capability name
-	// XXX This is required for debug cli to give you a list of capabilities
-	if ( stateType == 0xFF && state == 0xFF )
-	{
-		print("CustomAction_action1_capability()");
-		return;
-	}
-
-	// Prints Action1 info message to the debug cli
-	info_print("Action1");
-}
 
 uint8_t CustomAction_blockHold_storage = 0;
 void CustomAction_blockHold_capability( uint8_t state, uint8_t stateType, uint8_t *args )
@@ -178,18 +169,25 @@ void CustomAction_blockKey_capability( uint8_t state, uint8_t stateType, uint8_t
 	}
 }
 
-uint8_t isDebug(uint8_t state, uint8_t stateType) {
+///////////////////
+// CUSTOM STUFF  //
+///////////////////
+
+/// Utility methods ///
+inline uint8_t isDebug(uint8_t state, uint8_t stateType) {
 	return stateType == 0xFF && state == 0xFF;
 }
 
-uint8_t isNotAKeyPress(uint8_t state, uint8_t stateType) {
-	return stateType == 0x00 && state != 0x01;
+inline uint8_t isKeyPress(uint8_t state, uint8_t stateType) {
+	return stateType == 0x00 && state == 0x01;
 }
 
-void pushLedPage() {
-	LED_pageBuffer.i2c_addr = 0xE8; // Chip 1
-	LED_pageBuffer.reg_addr = 0x24; // Brightness section
-	LED_sendPage( (uint8_t*)&LED_pageBuffer, sizeof( LED_Buffer ), 0 );
+inline uint8_t isKeyRelease(uint8_t state, uint8_t stateType) {
+	return stateType == 0x00 && state == 0x03;
+}
+
+inline uint8_t isKeyHold(uint8_t state, uint8_t stateType) {
+	return stateType == 0x00 && state == 0x02;
 }
 
 void clearPageBuffer() {
@@ -198,13 +196,10 @@ void clearPageBuffer() {
 	}
 }
 
-void illuminateFunctionLayer1Keys() {
-	clearPageBuffer();
-	int8_t values[] = {16, 32, 48, 64, 80, 96, 112, 7, 0, 33, 49, 65, 81, 97, 113, 85, 70, 86, 102, 99, 103, 38};
-	for (uint8_t i = 0; i < sizeof(values); i++) {
-		LED_pageBuffer.buffer[values[i]] = LED_luminosity;
-	}
-	pushLedPage();
+void pushLedPage() {
+	LED_pageBuffer.i2c_addr = 0xE8; // Chip 1
+	LED_pageBuffer.reg_addr = 0x24; // Brightness section
+	LED_sendPage( (uint8_t*)&LED_pageBuffer, sizeof( LED_Buffer ), 0 );
 }
 
 void illuminateAllKeys() {
@@ -212,89 +207,6 @@ void illuminateAllKeys() {
 		LED_pageBuffer.buffer[i] = LED_luminosity;
 	}
 	pushLedPage();
-}
-
-void illuminateFunctionLayer2Keys() {
-	clearPageBuffer();
-	int8_t values[] = {16, 34, 67, 83, 4, 69, 71, 53, 65, 81, 49};
-	for (uint8_t i = 0; i < sizeof(values); i++) {
-		LED_pageBuffer.buffer[values[i]] = LED_luminosity;
-	}
-
-	pushLedPage();
-}
-
-uint8_t isKeyPress(uint8_t state, uint8_t stateType) {
-	return stateType == 0x00 && state == 0x01;
-}
-
-uint8_t isKeyRelease(uint8_t state, uint8_t stateType) {
-	return stateType == 0x00 && state == 0x03;
-}
-
-uint8_t isKeyHold(uint8_t state, uint8_t stateType) {
-	return stateType == 0x00 && state == 0x02;
-}
-
-void CustomAction_illuminateLayer1Lock_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
-	if (isDebug(state, stateType)) {
-		print("CustomAction_illuminateLayer1Lock_capability()");
-		return;
-	}
-	if (isNotAKeyPress(state, stateType)) {
-		// Only use capability on press. Not on release
-		return;
-	}
-
-	if (LED_currentIlluminatedLayer != 1) {
-		illuminateFunctionLayer1Keys();
-		LED_currentIlluminatedLayer = 1;
-	} else {
-		illuminateAllKeys();
-		LED_currentIlluminatedLayer = 0;
-	}
-}
-
-void CustomAction_illuminateLayer2Shift_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
-	if (isDebug(state, stateType)) {
-		print("CustomAction_illuminateLayer2Shift_capability()");
-		return;
-	}
-
-	if (isKeyPress(state, stateType) == 1) {
-		illuminateFunctionLayer2Keys();
-		LED_currentIlluminatedLayer = 2;
-	} else if (isKeyRelease(state, stateType) == 1) {
-		illuminateAllKeys();
-		LED_currentIlluminatedLayer = 0;
-	}
-}
-
-void CustomAction_illuminateLayer1Shift_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
-	if (isDebug(state, stateType)) {
-		print("CustomAction_illuminateLayer1Shift_capability()");
-		return;
-	}
-
-	if (isKeyPress(state, stateType) == 1) {
-		if (LED_currentIlluminatedLayer == 1) {
-			illuminateAllKeys();
-			LED_currentIlluminatedLayer = 0;
-		} else if (LED_currentIlluminatedLayer == 0) {
-			illuminateFunctionLayer1Keys();
-			LED_currentIlluminatedLayer = 1;
-		}
-	} else if (isKeyRelease(state, stateType) == 1) {
-		if (LED_currentIlluminatedLayer == 1) { // TODO: DUpe
-			illuminateAllKeys();
-			LED_currentIlluminatedLayer = 0;
-		} else if (LED_currentIlluminatedLayer == 0) {
-			illuminateFunctionLayer1Keys();
-			LED_currentIlluminatedLayer = 1;
-		}
-		illuminateAllKeys();
-		LED_currentIlluminatedLayer = 0;
-	}
 }
 
 uint8_t isTooEarlyToUpdate() {
@@ -308,15 +220,54 @@ uint8_t isTooEarlyToUpdate() {
 	}
 }
 
-void propagateNewLuminosityInProgress() {
-	if (LED_currentIlluminatedLayer == 0) {
-		illuminateAllKeys();
-	} else if (LED_currentIlluminatedLayer == 1) {
-		illuminateFunctionLayer1Keys();
-	} else if (LED_currentIlluminatedLayer == 2) {
-		illuminateFunctionLayer2Keys();
+void illuminate(const uint8_t values[], const uint8_t size) {
+	clearPageBuffer();
+	for (uint8_t i = 0; i < size; i++) {
+		LED_pageBuffer.buffer[values[i]] = LED_luminosity;
+	}
+	pushLedPage();
+}
+
+void illuminateAll() {
+	for ( uint8_t i = 0; i < LED_TotalChannels; i++ ) {
+		LED_pageBuffer.buffer[i] = LED_luminosity;
+	}
+	pushLedPage();
+}
+
+void illuminateCurrentLayer() {
+	uint8_t layer = Macro_getActiveLayer();
+	switch (layer) {
+	case 0:
+		illuminateAll();
+		break;
+	case 1:
+		illuminate(LAYER_1_VALUES, LAYER_1_SIZE);
+		break;
+	case 2:
+		illuminate(LAYER_2_VALUES, LAYER_2_SIZE);
+		break;
+	default:
+		illuminate(UNKNOWN_LAYER_VALUES, UNKNOWN_LAYER_SIZE);
+		break;
 	}
 }
+
+//////////////////////////////////////////////////
+
+/// Illuminate LEDs depending on the current layer ///
+
+void udpdateLedsWithFunctionLayer_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+	if (isDebug(state, stateType)) {
+		print("udpdateLedsWithFunctionLayer_capability()");
+		return;
+	}
+	illuminateCurrentLayer();
+}
+
+//////////////////////////////////////////////////
+
+/// Change LEDs luminosity
 
 void updateLuminosityWithBounds(uint8_t amount) {
 	LED_luminosity += amount;
@@ -334,35 +285,49 @@ void changeLuminosity(uint8_t amount, uint8_t state, uint8_t stateType) {
 		return;
 	}
 
-	if (isTooEarlyToUpdate() == 1) {
+	if (isTooEarlyToUpdate()) {
 		return;
 	}
 
-	if (isKeyHold(state, stateType) == 1) {
+	if (isKeyHold(state, stateType)) {
 		updateLuminosityWithBounds(amount);
-		propagateNewLuminosityInProgress();
+		illuminateCurrentLayer();
 	}
 }
 
-void CustomAction_increaseAllLedsLuminosity_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+void increaseAllLedsLuminosity_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
 	changeLuminosity(10, state, stateType);
 }
 
-void CustomAction_decreaseAllLedsLuminosity_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+void decreaseAllLedsLuminosity_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
 	changeLuminosity(-10, state, stateType);
 }
 
-void CustomAction_turnAllLedsOff_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+void turnAllLedsOff_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
 	if (isDebug(state, stateType)) {
 		// Display capability name. This is required for debug cli to give you a list of capabilities
 		print("CustomAction_turnAllLedsOff_capability()");
 		return;
 	}
 
-	if (isKeyPress(state, stateType) == 1) {
+	if (isKeyPress(state, stateType)) {
 		LED_luminosity = 0;
 		clearPageBuffer();
 		pushLedPage();
 	}
 }
 
+void turnAllLedsOn_capability(uint8_t state, uint8_t stateType, uint8_t *args) {
+	if (isDebug(state, stateType)) {
+		// Display capability name. This is required for debug cli to give you a list of capabilities
+		print("CustomAction_turnAllLedsOff_capability()");
+		return;
+	}
+
+	if (isKeyPress(state, stateType)) {
+		LED_luminosity = 254;
+		illuminateCurrentLayer();
+	}
+}
+
+//////////////////////////////////////////////////

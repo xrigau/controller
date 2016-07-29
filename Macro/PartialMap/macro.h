@@ -31,4 +31,5 @@ void Macro_ledState( uint8_t ledCode, uint8_t state );
 void Macro_pressReleaseAdd( void *trigger ); // triggers is of type TriggerGuide, void* for circular dependencies
 void Macro_process();
 void Macro_setup();
+uint8_t Macro_getActiveLayer();
 
